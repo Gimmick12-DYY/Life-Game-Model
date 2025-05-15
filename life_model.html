@@ -26,18 +26,20 @@
         const settings = {
             seed: 91651088029,
             fps: 0,
-            dimensions: 500,
+            dimensions: 300,
             atoms: {
-                count: 500, // Default value of 500
-                radius: 0.3 // Default value of 0.5 to represent each molecules
+                count: 500,
+                radius: 0.3,
+                bounceEnergy: 1.2,
+                traceDistance: 20 // Distance threshold for traces
             },
             brownian: {
                 active: true,
-                intensity: 0.5  // Controls the strength of random movement
+                intensity: 0.5
             },
-            drawings: { // Drawing options can be expensive on performance
-                lines: false, // draw lines between atoms that arr effecting each other
-                circle: false, // draw atoms as circles
+            drawings: {
+                lines: false,
+                circle: false,
                 background: {
                     active: false,
                     color: 'black'
@@ -45,10 +47,10 @@
             },
             rules: {},
             rulesArray: [],
-            colors: ['#6661F4', '#302D72', '#8785BF', '#9A98DB'], // More cell-like colors
-            time_scale: 0.8, // Slowed down for more natural movement
-            cutOff: 2000, // Adjusted for better cell-like interaction distance
-            viscosity: 0.9, // Increased for more fluid-like movement
+            colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'],
+            time_scale: 1.0, // Increased from 0.8 for more dynamic movement
+            cutOff: 2000,
+            viscosity: 0.85, // Reduced from 0.9 for more energetic movement
             pulseDuration: 10,
             reset: () => resetScene(),
             randomRules: () => {
@@ -60,6 +62,116 @@
                 symmetricRules()
                 randomAtoms(settings.atoms.count, true)
                 updateGUIDisplay()
+            },
+            cellDivision: () => {
+                // Reset rules for cell division behavior
+                for (var i of settings.colors) {
+                    settings.rules[i] = {};
+                    for (var j of settings.colors) {
+                        if (i === j) {
+                            settings.rules[i][j] = 1.0; // Increased attraction for more dynamic behavior
+                        } else {
+                            settings.rules[i][j] = -1.0; // Increased repulsion for more dynamic behavior
+                        }
+                    }
+                }
+                // Adjust physics for more energetic movement
+                settings.brownian.intensity = 2.5; // Increased random movement
+                settings.viscosity = 0.85; // Reduced viscosity for more bouncy behavior
+                settings.time_scale = 1.0; // Faster movement
+                settings.cutOff = 500;
+                settings.atoms.count = 500;
+                settings.atoms.radius = 0.3;
+                settings.atoms.bounceEnergy = 1.2; // Increased bounce energy
+                
+                // Force recreation of materials with new colors
+                meshMaterials.forEach((material, index) => {
+                    material.color.set(settings.colors[index]);
+                });
+                
+                randomAtoms(settings.atoms.count, true);
+                flattenRules();
+                updateGUIDisplay();
+            },
+            neuralNetwork: () => {
+                // Reset rules for neural network-like behavior
+                for (var i of settings.colors) {
+                    settings.rules[i] = {};
+                    for (var j of settings.colors) {
+                        if (i === j) {
+                            // Same type molecules strongly attract each other to form cell structures
+                            switch(settings.colors.indexOf(i)) {
+                                case 0: // Red (soma molecules) - form dense spherical clusters
+                                    settings.rules[i][j] = 0.7;
+                                    break;
+                                case 1: // Green (axon molecules) - form chain-like structures
+                                    settings.rules[i][j] = 0.6;
+                                    break;
+                                case 2: // Blue (dendrite molecules) - form branching structures
+                                    settings.rules[i][j] = 0.6;
+                                    break;
+                                case 3: // Yellow (membrane molecules) - form boundaries
+                                    settings.rules[i][j] = 0.5;
+                                    break;
+                            }
+                        } else {
+                            // Different type interactions
+                            const typeA = settings.colors.indexOf(i);
+                            const typeB = settings.colors.indexOf(j);
+                            
+                            if (typeA === 0) { // Red (soma molecules)
+                                if (typeB === 3) settings.rules[i][j] = 0.4; // Attract membrane molecules
+                                else settings.rules[i][j] = -0.4; // Moderate repulsion from others
+                            }
+                            else if (typeA === 1 || typeA === 2) { // Green/Blue (axon/dendrite molecules)
+                                if (typeB === 3) settings.rules[i][j] = 0.3; // Weak attraction to membrane
+                                else if (typeB === 0) settings.rules[i][j] = -0.5; // Moderate repulsion from soma
+                                else settings.rules[i][j] = -0.3; // Weak repulsion from other processes
+                            }
+                            else { // Yellow (membrane molecules)
+                                if (typeB === 0) settings.rules[i][j] = 0.4; // Attracted to soma
+                                else if (typeB === 1 || typeB === 2) settings.rules[i][j] = 0.3; // Weak attraction to processes
+                                else settings.rules[i][j] = 0.2; // Very weak attraction to other membrane molecules
+                            }
+                        }
+                    }
+                }
+
+                // Adjust physics for better distribution
+                settings.brownian.intensity = 1.2; // Increased random movement
+                settings.viscosity = 0.7; // Lower viscosity for more movement
+                settings.time_scale = 0.5; // Moderate speed
+                settings.cutOff = 100; // Shorter interaction range
+                settings.atoms.count = 400; // Fewer particles for clearer structures
+                settings.atoms.radius = 0.4; // Slightly larger particles
+
+                // Distribution: more balanced distribution
+                const counts = [
+                    Math.floor(settings.atoms.count * 0.3), // Red (soma molecules)
+                    Math.floor(settings.atoms.count * 0.25), // Green (axon molecules)
+                    Math.floor(settings.atoms.count * 0.25), // Blue (dendrite molecules)
+                    Math.floor(settings.atoms.count * 0.2)  // Yellow (membrane molecules)
+                ];
+
+                // Clear existing atoms and create new ones with random positions
+                while (settings.scene.atomsGroup.children.length) {
+                    settings.scene.atomsGroup.remove(settings.scene.atomsGroup.children[0]);
+                }
+                atoms.length = 0;
+
+                // Create new atoms with specified distribution
+                for (let i = 0; i < settings.colors.length; i++) {
+                    create(counts[i], i);
+                }
+
+                flattenRules();
+                updateGUIDisplay();
+            },
+            neuralTraces: {
+                enabled: false,
+                material: null,
+                lines: null,
+                visible: false // New property for GUI toggle
             },
             gui: null,
             scene: {
@@ -143,7 +255,21 @@
             // Essential Controls
             settings.gui.add(settings, 'reset').name('Reset Simulation')
             settings.gui.add(settings, 'randomRules').name('Randomize Rules')
-            settings.gui.add(settings.atoms, 'count', 100, 1000, 100).name('Particle Count').listen().onFinishChange(v => {
+            settings.gui.add(settings, 'cellDivision').name('Cell Division Mode')
+            settings.gui.add(settings, 'neuralNetwork').name('Neural Network Mode')
+            settings.gui.add(settings.neuralTraces, 'visible')
+                .name('Show Neural Traces')
+                .onChange((value) => {
+                    settings.neuralTraces.enabled = value;
+                    if (value && !settings.neuralTraces.lines) {
+                        initNeuralTraces();
+                    }
+                    if (!value && settings.neuralTraces.lines) {
+                        settings.scene.scene.remove(settings.neuralTraces.lines);
+                        settings.neuralTraces.lines = null;
+                    }
+                });
+            settings.gui.add(settings.atoms, 'count', 100, 2000, 100).name('Particle Count').listen().onFinishChange(v => {
                 randomAtoms(v, true)
             })
             settings.gui.add(settings, 'time_scale', 0.1, 2, 0.1).name('Speed').listen()
@@ -368,36 +494,70 @@
             }
             // update positions now
             for (var a of atoms) {
-                a[0] += a[3]
-                a[1] += a[4]
-                a[2] += a[5]
+                a[0] += a[3];
+                a[1] += a[4];
+                a[2] += a[5];
 
-                // When Atoms touch or bypass canvas borders
-                if (a[0] < 0) {
-                    a[0] = -a[0];
-                    a[3] *= -1;
+                const margin = settings.atoms.radius * 2;
+                const maxDim = settings.dimensions - margin;
+                const vertexThreshold = 5; // Distance threshold for vertex detection
+                
+                // Check if particle is near any vertex
+                const isNearVertex = (
+                    // Check all 8 vertices of the cube
+                    ((Math.abs(a[0] - margin) < vertexThreshold && Math.abs(a[1] - margin) < vertexThreshold && Math.abs(a[2] - margin) < vertexThreshold) ||
+                    (Math.abs(a[0] - margin) < vertexThreshold && Math.abs(a[1] - margin) < vertexThreshold && Math.abs(a[2] - maxDim) < vertexThreshold) ||
+                    (Math.abs(a[0] - margin) < vertexThreshold && Math.abs(a[1] - maxDim) < vertexThreshold && Math.abs(a[2] - margin) < vertexThreshold) ||
+                    (Math.abs(a[0] - margin) < vertexThreshold && Math.abs(a[1] - maxDim) < vertexThreshold && Math.abs(a[2] - maxDim) < vertexThreshold) ||
+                    (Math.abs(a[0] - maxDim) < vertexThreshold && Math.abs(a[1] - margin) < vertexThreshold && Math.abs(a[2] - margin) < vertexThreshold) ||
+                    (Math.abs(a[0] - maxDim) < vertexThreshold && Math.abs(a[1] - margin) < vertexThreshold && Math.abs(a[2] - maxDim) < vertexThreshold) ||
+                    (Math.abs(a[0] - maxDim) < vertexThreshold && Math.abs(a[1] - maxDim) < vertexThreshold && Math.abs(a[2] - margin) < vertexThreshold) ||
+                    (Math.abs(a[0] - maxDim) < vertexThreshold && Math.abs(a[1] - maxDim) < vertexThreshold && Math.abs(a[2] - maxDim) < vertexThreshold))
+                );
+
+                if (isNearVertex) {
+                    // Respawn at center with random small offset and zero velocity
+                    const centerOffset = 10;
+                    a[0] = settings.dimensions/2 + (mulberry32() * 2 - 1) * centerOffset;
+                    a[1] = settings.dimensions/2 + (mulberry32() * 2 - 1) * centerOffset;
+                    a[2] = settings.dimensions/2 + (mulberry32() * 2 - 1) * centerOffset;
+                    a[3] = 0; // Reset velocity
+                    a[4] = 0;
+                    a[5] = 0;
+                } else {
+                    // Normal boundary reflection for non-vertex collisions
+                    // X-axis collisions
+                    if (a[0] < margin) {
+                        a[0] = margin;
+                        a[3] = -a[3];
+                    }
+                    if (a[0] >= maxDim) {
+                        a[0] = maxDim;
+                        a[3] = -a[3];
+                    }
+
+                    // Y-axis collisions
+                    if (a[1] < margin) {
+                        a[1] = margin;
+                        a[4] = -a[4];
+                    }
+                    if (a[1] >= maxDim) {
+                        a[1] = maxDim;
+                        a[4] = -a[4];
+                    }
+
+                    // Z-axis collisions
+                    if (a[2] < margin) {
+                        a[2] = margin;
+                        a[5] = -a[5];
+                    }
+                    if (a[2] >= maxDim) {
+                        a[2] = maxDim;
+                        a[5] = -a[5];
+                    }
                 }
-                if (a[0] >= settings.dimensions) {
-                    a[0] = 2 * settings.dimensions - a[0];
-                    a[3] *= -1;
-                }
-                if (a[1] < 0) {
-                    a[1] = -a[1];
-                    a[4] *= -1;
-                }
-                if (a[1] >= settings.dimensions) {
-                    a[1] = 2 * settings.dimensions - a[1];
-                    a[4] *= -1;
-                }
-                if (a[2] < 0) {
-                    a[2] = -a[2];
-                    a[5] *= -1;
-                }
-                if (a[2] >= settings.dimensions) {
-                    a[2] = 2 * settings.dimensions - a[2];
-                    a[5] *= -1;
-                }
-                a[7].position.set(a[0], a[1], a[2])
+
+                a[7].position.set(a[0], a[1], a[2]);
             }
             total_v /= atoms.length;
         };
@@ -420,20 +580,93 @@
         var lastT = Date.now();
         update();
 
+        // Initialize neural trace system
+        function initNeuralTraces() {
+            if (settings.neuralTraces.lines) {
+                settings.scene.scene.remove(settings.neuralTraces.lines);
+            }
+            
+            // Create material for traces
+            settings.neuralTraces.material = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.2
+            });
+
+            // Create geometry for lines
+            const positions = new Float32Array(atoms.length * 2 * 3); // 2 points per line, 3 coordinates per point
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            // Create line segments
+            settings.neuralTraces.lines = new THREE.LineSegments(geometry, settings.neuralTraces.material);
+            settings.scene.scene.add(settings.neuralTraces.lines);
+        }
+
+        // Update neural traces
+        function updateNeuralTraces() {
+            if (!settings.neuralTraces.enabled || !settings.neuralTraces.lines) return;
+
+            const positions = [];
+            const maxDist = settings.atoms.traceDistance * settings.atoms.traceDistance;
+
+            // Find connections between particles
+            for (let i = 0; i < atoms.length; i++) {
+                const a = atoms[i];
+                for (let j = i + 1; j < atoms.length; j++) {
+                    const b = atoms[j];
+                    
+                    // Check if particles are close enough
+                    const dx = a[0] - b[0];
+                    const dy = a[1] - b[1];
+                    const dz = a[2] - b[2];
+                    const dist = dx * dx + dy * dy + dz * dz;
+
+                    if (dist < maxDist) {
+                        // Add line vertices
+                        positions.push(a[0], a[1], a[2]);
+                        positions.push(b[0], b[1], b[2]);
+                    }
+                }
+            }
+
+            // Update geometry
+            const geometry = settings.neuralTraces.lines.geometry;
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Modify update function
         function update() {
             // Apply Rules
-            applyRules()
+            applyRules();
+
+            // Update neural traces if enabled
+            if (settings.neuralTraces.enabled) {
+                updateNeuralTraces();
+            }
 
             // Draw Atoms
-            settings.scene.controls.update()
-            settings.scene.renderer.render(settings.scene.scene, settings.scene.camera)
+            settings.scene.controls.update();
+            settings.scene.renderer.render(settings.scene.scene, settings.scene.camera);
 
             // Update Params
-            updateParams()
+            updateParams();
 
-
-            requestAnimationFrame(update)
+            requestAnimationFrame(update);
         }
+
+        // Modify neuralNetwork function
+        const originalNeuralNetwork = settings.neuralNetwork;
+        settings.neuralNetwork = () => {
+            originalNeuralNetwork();
+            
+            // Initialize traces but don't enable unless visible is true
+            settings.neuralTraces.enabled = settings.neuralTraces.visible;
+            if (settings.neuralTraces.visible) {
+                initNeuralTraces();
+            }
+        };
 
         // post-frame stats and updates
         function updateParams() {
