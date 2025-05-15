@@ -48,9 +48,9 @@
             rules: {},
             rulesArray: [],
             colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'],
-            time_scale: 1.0, // Increased from 0.8 for more dynamic movement
+            time_scale: 1.0, 
             cutOff: 2000,
-            viscosity: 0.85, // Reduced from 0.9 for more energetic movement
+            viscosity: 0.85,
             pulseDuration: 10,
             reset: () => resetScene(),
             randomRules: () => {
@@ -69,20 +69,20 @@
                     settings.rules[i] = {};
                     for (var j of settings.colors) {
                         if (i === j) {
-                            settings.rules[i][j] = 1.0; // Increased attraction for more dynamic behavior
+                            settings.rules[i][j] = 1.0; // Increased attraction for more dynamic behavior from default
                         } else {
-                            settings.rules[i][j] = -1.0; // Increased repulsion for more dynamic behavior
+                            settings.rules[i][j] = -1.0; // Increased repulsion for more dynamic behavior from default
                         }
                     }
                 }
-                // Adjust physics for more energetic movement
+                // Adjust physics for more movement
                 settings.brownian.intensity = 2.5; // Increased random movement
                 settings.viscosity = 0.85; // Reduced viscosity for more bouncy behavior
                 settings.time_scale = 1.0; // Faster movement
                 settings.cutOff = 500;
                 settings.atoms.count = 500;
                 settings.atoms.radius = 0.3;
-                settings.atoms.bounceEnergy = 1.2; // Increased bounce energy
+                settings.atoms.bounceEnergy = 1.2; // Increased bounce energy (toward the wall)
                 
                 // Force recreation of materials with new colors
                 meshMaterials.forEach((material, index) => {
@@ -137,7 +137,7 @@
                     }
                 }
 
-                // Adjust physics for better distribution
+                // Physics for better distribution
                 settings.brownian.intensity = 1.2; // Increased random movement
                 settings.viscosity = 0.7; // Lower viscosity for more movement
                 settings.time_scale = 0.5; // Moderate speed
@@ -171,7 +171,7 @@
                 enabled: false,
                 material: null,
                 lines: null,
-                visible: false // New property for GUI toggle
+                visible: false 
             },
             gui: null,
             scene: {
@@ -372,7 +372,7 @@
         }
 
 
-        // Initiate Random locations for Atoms ( used when atoms created )
+        // Initiate Random locations for Atoms (when atoms created)
         function randomX() {
             return mulberry32() * (settings.dimensions - 100) + 50;
         };
@@ -424,7 +424,6 @@
 
 
 
-
         // Run Application
         loadSeedFromUrl()
 
@@ -437,7 +436,7 @@
 
         var total_v; // global velocity as a estimate of on-screen activity
 
-        // Apply Rules ( How atoms interact with each other )
+        // Apply Rules (how atoms interact with each other)
         const applyRules = () => {
             total_v = 0.;
             // update velocity first
@@ -580,7 +579,7 @@
         var lastT = Date.now();
         update();
 
-        // Initialize neural trace system
+        // Initialize the trace system
         function initNeuralTraces() {
             if (settings.neuralTraces.lines) {
                 settings.scene.scene.remove(settings.neuralTraces.lines);
@@ -661,7 +660,7 @@
         settings.neuralNetwork = () => {
             originalNeuralNetwork();
             
-            // Initialize traces but don't enable unless visible is true
+            // Initialize traces but do not enable unless visible is true
             settings.neuralTraces.enabled = settings.neuralTraces.visible;
             if (settings.neuralTraces.visible) {
                 initNeuralTraces();
