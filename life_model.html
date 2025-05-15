@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
-        body {
+        html, body {
             margin: 0;
+            padding: 0;
+            background-color: black;
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
         }
     </style>
 </head>
@@ -24,7 +29,11 @@
             dimensions: 500,
             atoms: {
                 count: 500, // Default value of 500
-                radius: 0.5 // Default value of 0.5 to represent each molecules
+                radius: 0.3 // Default value of 0.5 to represent each molecules
+            },
+            brownian: {
+                active: true,
+                intensity: 0.5  // Controls the strength of random movement
             },
             drawings: { // Drawing options can be expensive on performance
                 lines: false, // draw lines between atoms that arr effecting each other
@@ -145,6 +154,12 @@
             configFolder.add(settings, 'cutOff', 1, 20000 * 2, 50).name('Max Distance').listen()
             configFolder.add(settings, 'viscosity', 0.1, 2, 0.1).name('Viscosity').listen()
             configFolder.add(settings, 'pulseDuration', 1, 100, 1).name('Click Pulse Duration').listen()
+
+            // Brownian Motion Controls
+            const brownianFolder = settings.gui.addFolder('Brownian Motion')
+            brownianFolder.add(settings.brownian, 'active').name('Enable Random Movement').listen()
+            brownianFolder.add(settings.brownian, 'intensity', 0, 2, 0.1).name('Random Force Intensity').listen()
+
             // Drawings
             const drawingsFolder = settings.gui.addFolder('Drawings')
             drawingsFolder.add(settings.atoms, 'radius', 0.1, 10, 0.1).name('Radius').listen().onFinishChange(v => {
@@ -303,6 +318,14 @@
                 let fy = 0;
                 let fz = 0;
                 const r2 = settings.cutOff;
+
+                // Add Brownian motion - random force in each direction
+                if (settings.brownian.active) {
+                    fx += (mulberry32() * 2 - 1) * settings.brownian.intensity;
+                    fy += (mulberry32() * 2 - 1) * settings.brownian.intensity;
+                    fz += (mulberry32() * 2 - 1) * settings.brownian.intensity;
+                }
+
                 for (var b of atoms) {
                     const g = settings.rulesArray[a[6]][b[6]];
                     const dx = a[0] - b[0];
