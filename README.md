@@ -16,4 +16,3 @@ The simulation program provides a few presets: 1) Cell Division Mode, which simu
 <img width="1376" alt="image" src="https://github.com/user-attachments/assets/f962b8cb-c9f1-49b6-a383-73c44cad23b8" />
 
 <p align="center"><b>The Neural Network Mode</b></p>
-
