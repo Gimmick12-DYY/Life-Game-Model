@@ -139,26 +139,28 @@
             settings.gui.domElement.style.position = 'absolute'
             settings.gui.domElement.style.left = '16px'
             settings.gui.domElement.style.top = '16px'
-            // Configs
-            const configFolder = settings.gui.addFolder('Config')
-            configFolder.add(settings, 'reset').name('Reset')
-            configFolder.add(settings, 'randomRules').name('Random Rules')
-            configFolder.add(settings, 'symmetricRules').name('Symmetric Rules')
-            configFolder.add(settings, 'seed').name('Seed').listen()
-            configFolder.add(settings, 'fps').name('FPS - (Live)').listen().disable()
-            configFolder.add(settings.atoms, 'count', 1, 1000, 1).name('Atoms per-color').listen().onFinishChange(v => {
+
+            // Essential Controls
+            settings.gui.add(settings, 'reset').name('Reset Simulation')
+            settings.gui.add(settings, 'randomRules').name('Randomize Rules')
+            settings.gui.add(settings.atoms, 'count', 100, 1000, 100).name('Particle Count').listen().onFinishChange(v => {
                 randomAtoms(v, true)
             })
-            configFolder.add(settings, 'dimensions', 200, 5000, 100).name('Cube Dimensions').listen().onFinishChange(v => settings.reset())
-            configFolder.add(settings, 'time_scale', 0.1, 5, 0.01).name('Time Scale').listen()
-            configFolder.add(settings, 'cutOff', 1, 20000 * 2, 50).name('Max Distance').listen()
-            configFolder.add(settings, 'viscosity', 0.1, 2, 0.1).name('Viscosity').listen()
-            configFolder.add(settings, 'pulseDuration', 1, 100, 1).name('Click Pulse Duration').listen()
+            settings.gui.add(settings, 'time_scale', 0.1, 2, 0.1).name('Speed').listen()
+            settings.gui.add(settings.brownian, 'intensity', 0, 2, 0.1).name('Random Motion').listen()
+            settings.gui.add(settings.atoms, 'radius', 0.1, 2, 0.1).name('Size').listen().onFinishChange(v => {
+                for (const mesh of settings.scene.atomsGroup.children) mesh.scale.set(v, v, v)
+            })
 
-            // Brownian Motion Controls
-            const brownianFolder = settings.gui.addFolder('Brownian Motion')
-            brownianFolder.add(settings.brownian, 'active').name('Enable Random Movement').listen()
-            brownianFolder.add(settings.brownian, 'intensity', 0, 2, 0.1).name('Random Force Intensity').listen()
+            // Advanced Controls (collapsed by default)
+            const advancedFolder = settings.gui.addFolder('Advanced')
+            advancedFolder.add(settings, 'seed').name('Seed').listen()
+            advancedFolder.add(settings, 'dimensions', 200, 1000, 100).name('Space Size').listen().onFinishChange(v => settings.reset())
+            advancedFolder.add(settings, 'cutOff', 1000, 5000, 100).name('Interaction Range').listen()
+            advancedFolder.add(settings, 'viscosity', 0.1, 2, 0.1).name('Viscosity').listen()
+            advancedFolder.add(settings.brownian, 'active').name('Enable Random Motion').listen()
+            advancedFolder.add(settings, 'pulseDuration', 1, 100, 1).name('Pulse Duration').listen()
+            advancedFolder.add(settings, 'fps').name('FPS').listen().disable()
 
             // Drawings
             const drawingsFolder = settings.gui.addFolder('Drawings')
