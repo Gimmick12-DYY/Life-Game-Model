@@ -184,7 +184,75 @@
                 controls: null,
                 atomsGroup: null,
                 gridHelper: null
-            }
+            },
+            predatorNucleusMode: () => {
+                // Parameters for this mode
+                const coreCount = 4;
+                const foodCount = 120;
+                const cellCount = 24;
+                const membraneCount = 24;
+                const coreRadius = 2.5;
+                const foodRadius = 0.22;
+                const cellRadius = 0.5;
+                const membraneRadius = 0.3;
+                const coreColor = '#FFD700'; // gold
+                const foodColor = '#00FFFF'; // cyan
+                const cellColor = '#FF69B4'; // pink
+                const membraneColor = '#00FF00'; // green
+                const coreMass = 10;
+                const foodMass = 1;
+                const cellMass = 2;
+                const membraneMass = 1.5;
+                settings.colors = [coreColor, foodColor, cellColor, membraneColor];
+                // Clear scene
+                while (settings.scene.atomsGroup.children.length) {
+                    settings.scene.atomsGroup.remove(settings.scene.atomsGroup.children[0]);
+                }
+                atoms.length = 0;
+                // Create cores
+                for (let i = 0; i < coreCount; i++) {
+                    const atom = [randomX(), randomY(), randomX(), 0, 0, 0, 0, null, coreRadius, coreMass];
+                    const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({color: coreColor, side: THREE.DoubleSide}));
+                    mesh.position.set(atom[0], atom[1], atom[2]);
+                    mesh.scale.set(coreRadius, coreRadius, coreRadius);
+                    settings.scene.atomsGroup.add(mesh);
+                    atom[7] = mesh;
+                    atoms.push(atom);
+                }
+                // Create food
+                for (let i = 0; i < foodCount; i++) {
+                    const atom = [randomX(), randomY(), randomX(), 0, 0, 0, 1, null, foodRadius, foodMass];
+                    const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({color: foodColor, side: THREE.DoubleSide}));
+                    mesh.position.set(atom[0], atom[1], atom[2]);
+                    mesh.scale.set(foodRadius, foodRadius, foodRadius);
+                    settings.scene.atomsGroup.add(mesh);
+                    atom[7] = mesh;
+                    atoms.push(atom);
+                }
+                // Create cell particles
+                for (let i = 0; i < cellCount; i++) {
+                    const atom = [randomX(), randomY(), randomX(), 0, 0, 0, 2, null, cellRadius, cellMass];
+                    const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({color: cellColor, side: THREE.DoubleSide}));
+                    mesh.position.set(atom[0], atom[1], atom[2]);
+                    mesh.scale.set(cellRadius, cellRadius, cellRadius);
+                    settings.scene.atomsGroup.add(mesh);
+                    atom[7] = mesh;
+                    atoms.push(atom);
+                }
+                // Create membrane particles
+                for (let i = 0; i < membraneCount; i++) {
+                    const atom = [randomX(), randomY(), randomX(), 0, 0, 0, 3, null, membraneRadius, membraneMass];
+                    const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({color: membraneColor, side: THREE.DoubleSide}));
+                    mesh.position.set(atom[0], atom[1], atom[2]);
+                    mesh.scale.set(membraneRadius, membraneRadius, membraneRadius);
+                    settings.scene.atomsGroup.add(mesh);
+                    atom[7] = mesh;
+                    atoms.push(atom);
+                }
+                settings.predatorNucleusActive = true;
+                updateGUIDisplay();
+            },
+            predatorNucleusActive: false
         }
         const resetScene = () => {
             randomAtoms(settings.atoms.count, true)
@@ -280,6 +348,7 @@
             settings.gui.add(settings.atoms, 'radius', 0.1, 2, 0.1).name('Size').listen().onFinishChange(v => {
                 for (const mesh of settings.scene.atomsGroup.children) mesh.scale.set(v, v, v)
             })
+            settings.gui.add(settings, 'predatorNucleusMode').name('Predator Nucleus Mode')
         }
 
 
@@ -634,19 +703,153 @@
         function update() {
             // Apply Rules
             applyRules();
-
+            // Predator Nucleus logic
+            if (settings.predatorNucleusActive) {
+                // Core-food and core-core eating
+                let toRemove = new Set();
+                // Cores: type 0, Food: type 1, Cell: 2, Membrane: 3
+                for (let i = 0; i < atoms.length; i++) {
+                    const a = atoms[i];
+                    if (a[6] === 0) { // Only cores
+                        // Check for food
+                        for (let j = 0; j < atoms.length; j++) {
+                            if (i === j) continue;
+                            const b = atoms[j];
+                            if (b[6] === 1) { // food
+                                const dx = a[0] - b[0];
+                                const dy = a[1] - b[1];
+                                const dz = a[2] - b[2];
+                                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                                if (dist < (a[8] + b[8])) {
+                                    a[8] += 0.08;
+                                    a[9] += b[9];
+                                    a[7].scale.set(a[8], a[8], a[8]);
+                                    toRemove.add(j);
+                                }
+                            } else if (b[6] === 0 && i < j) {
+                                const dx = a[0] - b[0];
+                                const dy = a[1] - b[1];
+                                const dz = a[2] - b[2];
+                                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                                if (dist < (a[8] + b[8])) {
+                                    if (a[9] > b[9]) {
+                                        a[8] += b[8] * 0.5;
+                                        a[9] += b[9];
+                                        a[7].scale.set(a[8], a[8], a[8]);
+                                        toRemove.add(j);
+                                    } else if (a[9] < b[9]) {
+                                        b[8] += a[8] * 0.5;
+                                        b[9] += a[9];
+                                        b[7].scale.set(b[8], b[8], b[8]);
+                                        toRemove.add(i);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (a[6] === 2 || a[6] === 3) { // cell or membrane
+                        // Attracted to nearest core, but cluster in a shell
+                        let minDist = Infinity;
+                        let nearestCore = null;
+                        for (let j = 0; j < atoms.length; j++) {
+                            const b = atoms[j];
+                            if (b[6] === 0) {
+                                const dx = a[0] - b[0];
+                                const dy = a[1] - b[1];
+                                const dz = a[2] - b[2];
+                                const dist = dx*dx + dy*dy + dz*dz;
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    nearestCore = b;
+                                }
+                            }
+                        }
+                        if (nearestCore) {
+                            const dx = nearestCore[0] - a[0];
+                            const dy = nearestCore[1] - a[1];
+                            const dz = nearestCore[2] - a[2];
+                            const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.0001;
+                            // Shell parameters
+                            const shellRadius = nearestCore[8] * 1.3;
+                            const shellWidth = nearestCore[8] * 0.3;
+                            const shellMin = shellRadius - shellWidth/2;
+                            const shellMax = shellRadius + shellWidth/2;
+                            let force = 0;
+                            if (dist < shellMin) {
+                                // Repel if too close
+                                force = -0.12 * (shellMin - dist) / shellWidth;
+                            } else if (dist > shellMax) {
+                                // Attract if too far
+                                force = 0.18 * (dist - shellMax) / shellWidth;
+                            } else {
+                                // Soft spring toward shell
+                                force = 0.10 * (shellRadius - dist) / shellWidth;
+                            }
+                            a[3] += (dx / dist) * force;
+                            a[4] += (dy / dist) * force;
+                            a[5] += (dz / dist) * force;
+                        }
+                        // Add reduced random movement
+                        a[3] += (mulberry32() * 2 - 1) * 0.012;
+                        a[4] += (mulberry32() * 2 - 1) * 0.012;
+                        a[5] += (mulberry32() * 2 - 1) * 0.012;
+                        // Optional: weak repulsion from other cell/membrane particles
+                        for (let j = 0; j < atoms.length; j++) {
+                            if (i === j) continue;
+                            const b = atoms[j];
+                            if ((b[6] === 2 || b[6] === 3)) {
+                                const dx = a[0] - b[0];
+                                const dy = a[1] - b[1];
+                                const dz = a[2] - b[2];
+                                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.0001;
+                                if (dist < 1.5) {
+                                    const repel = 0.03 * (1.5 - dist);
+                                    a[3] += (dx / dist) * repel;
+                                    a[4] += (dy / dist) * repel;
+                                    a[5] += (dz / dist) * repel;
+                                }
+                            }
+                        }
+                    } else if (a[6] === 1) { // food
+                        // Add random movement
+                        a[3] += (mulberry32() * 2 - 1) * 0.02;
+                        a[4] += (mulberry32() * 2 - 1) * 0.02;
+                        a[5] += (mulberry32() * 2 - 1) * 0.02;
+                    }
+                }
+                // Remove eaten food/cores
+                const toRemoveArr = Array.from(toRemove).sort((a,b)=>b-a);
+                for (const idx of toRemoveArr) {
+                    settings.scene.atomsGroup.remove(atoms[idx][7]);
+                    atoms.splice(idx, 1);
+                }
+                // Respawn food every 30 frames
+                let foodRespawnTimer = 0;
+                foodRespawnTimer++;
+                if (foodRespawnTimer > 30) {
+                    foodRespawnTimer = 0;
+                    // Count current food
+                    let foodCountNow = atoms.filter(a => a[6] === 1).length;
+                    if (foodCountNow < 120) {
+                        // Add new food
+                        const atom = [randomX(), randomY(), randomX(), 0, 0, 0, 1, null, foodRadius, 1];
+                        const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({color: foodColor, side: THREE.DoubleSide}));
+                        mesh.position.set(atom[0], atom[1], atom[2]);
+                        mesh.scale.set(foodRadius, foodRadius, foodRadius);
+                        settings.scene.atomsGroup.add(mesh);
+                        atom[7] = mesh;
+                        atoms.push(atom);
+                    }
+                }
+            }
             // Update neural traces if enabled
             if (settings.neuralTraces.enabled) {
                 updateNeuralTraces();
             }
-
             // Draw Atoms
             settings.scene.controls.update();
             settings.scene.renderer.render(settings.scene.scene, settings.scene.camera);
-
             // Update Params
             updateParams();
-
             requestAnimationFrame(update);
         }
 
