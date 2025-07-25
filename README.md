@@ -17,4 +17,4 @@ The simulation program provides a few presets: 1) Cell Division Mode, which simu
 
 <p align="center"><b>The Neural Network Mode</b></p>
 
-Note that it is recommended to keep the number of particles in the config at most 1000, otherwise the rendering efficiency and fps will compromise dramatically.
+Note that it is recommended to keep the number of particles in the config at most 1000, otherwise the rendering efficiency and FPS of the browser will be compromised dramatically.
